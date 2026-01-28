@@ -63,10 +63,4 @@ proj.win64/
 proj.mac/
 
 # ===============================
-# Assets cache (DO NOT ignore assets)
-# ===============================
-# Do NOT ignore:
-# assets/
-# settings/
-# project.json (2.x)
-# package.json (3.x)
+
