@@ -3,7 +3,7 @@ import { _decorator, Component, Node, Vec3 } from 'cc';
 import { CardController } from './CardController';
 const { ccclass, property } = _decorator;
 
-const CARD_SPACING = 70;
+const CARD_SPACING = 50;
 
 @ccclass('HandCardsController')
 export class HandCardsController extends Component {
@@ -43,6 +43,7 @@ export class HandCardsController extends Component {
         for (let i = 0; i < n; i++) {
             const cardNode = this.cards[i].node;
             cardNode.setPosition(new Vec3(startX + i * CARD_SPACING, 0, 0));
+            cardNode.setSiblingIndex(i); // Ensure stacking order matches hand order
         }
     }
 

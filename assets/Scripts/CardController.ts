@@ -1,45 +1,78 @@
-import { _decorator, Component, Node, EventTouch } from 'cc';
+import { _decorator, Component, Node, EventTouch, Vec3, UITransform } from 'cc';
 import { CardDisplayController } from './CardDisplayController';
 const { ccclass, property } = _decorator;
+import { GameManager, GameState } from './GameManager'; // Add this import
 
-const SUIT_NAMES = ['spade', 'club', 'diamond', 'heart'];
 
 @ccclass('CardController')
 export class CardController extends Component {
-    @property(CardDisplayController)
-    displayController: CardDisplayController = null!;
+    @property(Node)
+    displayNode: Node = null!;
 
-    rank: number = 0;
-    suit: number = 0; // 0-3
+    public rank: number = 1;
+    public suit: number = 0;
+    public inHand: boolean = false;
 
-    // Only clickable if in hand
-    inHand: boolean = false;
+    private dragCallback: ((card: CardController) => void) | null = null;
+    private isDragging = false;
 
-    // Callback to notify GameManager
-    onCardSelected: ((card: CardController) => void) | null = null;
+    setDragCallback(cb: (card: CardController) => void) {
+        this.dragCallback = cb;
+    }
 
-    setup(rank: number, suit: number, isFaceUp: boolean = true) {
+    onLoad() {
+        this.node.on(Node.EventType.TOUCH_START, this.onDragStart, this);
+        this.node.on(Node.EventType.TOUCH_MOVE, this.onDragMove, this);
+        this.node.on(Node.EventType.TOUCH_END, this.onDragEnd, this);
+        this.node.on(Node.EventType.TOUCH_CANCEL, this.onDragEnd, this);
+    }
+
+    setup(rank: number, suit: number, isFaceUp: boolean) {
         this.rank = rank;
         this.suit = suit;
         this.setupDisplay(isFaceUp);
     }
 
-    setupDisplay(isFaceUp: boolean = true) {
-        if (!this.displayController) {
-            console.warn('displayController is not assigned');
-            return;
+    setupDisplay(isFaceUp: boolean) {
+        const suitNames = ['spade', 'club', 'heart', 'diamond'];
+        const suitName = suitNames[this.suit] || 'spade';
+        const display = this.getComponent(CardDisplayController) ||
+            (this.displayNode && this.displayNode.getComponent(CardDisplayController));
+        if (display) {
+            display.setupCard(this.rank, suitName, isFaceUp);
         }
-        const suitName = SUIT_NAMES[this.suit] ?? 'spade';
-        this.displayController.setupCard(this.rank, suitName, isFaceUp);
     }
 
-    onLoad() {
-        this.node.on(Node.EventType.TOUCH_END, this.onCardClicked, this);
+    onDragStart(event: EventTouch) {
+        if (!this.inHand) return;
+        if (!GameManager.instance || GameManager.instance.gameState !== GameState.WaitToSubmit) return;
+        this.isDragging = true;
+        this.node.setSiblingIndex(999);
     }
 
-    onCardClicked(event: EventTouch) {
-        if (this.inHand && this.onCardSelected) {
-            this.onCardSelected(this);
-        }
+    onDragMove(event: EventTouch) {
+        if (!this.isDragging) return;
+        const worldPos = event.getUILocation();
+        const parent = this.node.parent!;
+        const localPos = parent.getComponent(UITransform)!.convertToNodeSpaceAR(new Vec3(worldPos.x, worldPos.y, 0));
+        this.node.setPosition(localPos);
+    }
+
+    onDragEnd(event: EventTouch) {
+        if (!this.isDragging) return;
+        this.isDragging = false;
+        if (this.dragCallback) this.dragCallback(this);
+    }
+
+    snapToSummit(pos: Vec3) {
+        this.node.setWorldPosition(pos);
+        this.inHand = false;
+    }
+
+    // This will be replaced by GameManager at runtime
+    returnToHand() {
+        this.inHand = true;
+        // Reset sibling index so hand controller can arrange it
+        this.node.setSiblingIndex(0);
     }
 }
