@@ -1,0 +1,72 @@
+# ===============================
+# OS / Editor junk
+# ===============================
+.DS_Store
+Thumbs.db
+*.log
+
+# ===============================
+# Node / NPM
+# ===============================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===============================
+# Cocos Creator
+# ===============================
+# Cache & temp
+.temp/
+library/
+local/
+build/
+dist/
+
+# Cocos Creator 3.x
+temp/
+profile/
+
+# Auto-generated project files
+.settings/
+.idea/
+.vscode/
+
+# ===============================
+# Build outputs (platform specific)
+# ===============================
+# Web
+web-desktop/
+web-mobile/
+
+# Native
+jsb-default/
+build-templates/
+
+# Android
+proj.android/
+build/android/
+.gradle/
+*.keystore
+
+# iOS
+proj.ios_mac/
+*.xcworkspace
+*.xcuserstate
+DerivedData/
+
+# Windows
+proj.win32/
+proj.win64/
+
+# Mac
+proj.mac/
+
+# ===============================
+# Assets cache (DO NOT ignore assets)
+# ===============================
+# Do NOT ignore:
+# assets/
+# settings/
+# project.json (2.x)
+# package.json (3.x)
