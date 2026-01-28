@@ -1,4 +1,5 @@
-import { _decorator, Component, Node, EventTouch } from 'cc';import { CardDisplayController } from './CardDisplayController';
+import { _decorator, Component, Node, EventTouch } from 'cc';
+import { CardDisplayController } from './CardDisplayController';
 const { ccclass, property } = _decorator;
 
 const SUIT_NAMES = ['spade', 'club', 'diamond', 'heart'];
@@ -10,6 +11,12 @@ export class CardController extends Component {
 
     rank: number = 0;
     suit: number = 0; // 0-3
+
+    // Only clickable if in hand
+    inHand: boolean = false;
+
+    // Callback to notify GameManager
+    onCardSelected: ((card: CardController) => void) | null = null;
 
     setup(rank: number, suit: number, isFaceUp: boolean = true) {
         this.rank = rank;
@@ -26,18 +33,13 @@ export class CardController extends Component {
         this.displayController.setupCard(this.rank, suitName, isFaceUp);
     }
 
-    start() {
-        // const randomRank = Math.floor(Math.random() * 13) + 1; // 1-13
-        // const randomSuit = Math.floor(Math.random() * 4); // 0-3
-        // this.setup(randomRank, randomSuit, true);
-    }
     onLoad() {
         this.node.on(Node.EventType.TOUCH_END, this.onCardClicked, this);
     }
 
     onCardClicked(event: EventTouch) {
-        const suitName = SUIT_NAMES[this.suit] ?? 'spade';
-        console.log('Card clicked:', this.rank, suitName);
-        // Handle card click logic here
+        if (this.inHand && this.onCardSelected) {
+            this.onCardSelected(this);
+        }
     }
 }
