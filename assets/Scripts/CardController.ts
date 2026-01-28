@@ -28,8 +28,8 @@ export class CardController extends Component {
     }
 
     start() {
-        const randomRank = Math.floor(Math.random() * 13) + 1; // 1-13
-        const randomSuit = Math.floor(Math.random() * 4); // 0-3
-        this.setup(randomRank, randomSuit, true);
+        // const randomRank = Math.floor(Math.random() * 13) + 1; // 1-13
+        // const randomSuit = Math.floor(Math.random() * 4); // 0-3
+        // this.setup(randomRank, randomSuit, true);
     }
 }
