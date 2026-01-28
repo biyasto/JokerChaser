@@ -106,7 +106,7 @@ export class GameManager extends Component {
                     // If player is dragging a card, pick that
                     if (this.playerDraggingCard) {
                         card = this.playerDraggingCard;
-                        card.forceStopDragging(); 
+                        card.forceStopDragging();
                         this.handCardsControllers[0].removeCard(card);
                         this.playerDraggingCard = null;
                     } else {
@@ -177,38 +177,121 @@ export class GameManager extends Component {
     }
 
     private handleResultPhase(playerCard: CardController) {
-        // Bots give a card
+        // Track removed cards and their hand indices
         const removedCards: CardController[] = [playerCard];
+        const handIndices: number[] = [0]; // 0 = player, 1-3 = bots
+
+// --- Bots: duplicate avoidance is less important (50% chance to care) ---
         for (let i = 1; i < 4; i++) {
             const botHand = this.handCardsControllers[i];
-            const cards = botHand.getCards();
-            if (cards.length > 0) {
-                const randomIdx = Math.floor(Math.random() * cards.length);
-                const cardToRemove = cards[randomIdx];
-                botHand.removeCard(cardToRemove);
-                cardToRemove.node.active = true;
-                cardToRemove.setupDisplay(true);
-                removedCards.push(cardToRemove);
+            if (botHand.getHp() > 0) {
+                const cards = botHand.getCards();
+                if (cards.length > 0) {
+                    // Gather all cards left in all hands (excluding this bot)
+                    const allOtherCards: number[] = [];
+                    for (let j = 0; j < 4; j++) {
+                        if (j !== i && this.handCardsControllers[j].getHp() > 0) {
+                            allOtherCards.push(...this.handCardsControllers[j].getCards().map(c => c.rank));
+                        }
+                    }
+                    // Find cards in bot's hand whose rank is unique among all hands
+                    const safeCards = cards.filter(c => !allOtherCards.includes(c.rank));
+                    let cardToRemove: CardController;
+                    if (botHand.getHp() === 1) {
+                        // If low HP, always play the lowest card
+                        cardToRemove = cards.reduce((min, c) => c.rank < min.rank ? c : min, cards[0]);
+                    } else if (safeCards.length > 0 && Math.random() < 0.5) {
+                        // 50% chance to care about duplicates
+                        cardToRemove = safeCards[Math.floor(Math.random() * safeCards.length)];
+                    } else {
+                        // Fallback: each bot behaves differently
+                        if (i === 1) {
+                            // Bot 1: play lowest
+                            cardToRemove = cards.reduce((min, c) => c.rank < min.rank ? c : min, cards[0]);
+                        } else if (i === 2) {
+                            // Bot 2: play highest
+                            cardToRemove = cards.reduce((max, c) => c.rank > max.rank ? c : max, cards[0]);
+                        } else {
+                            // Bot 3: play random
+                            const randomIdx = Math.floor(Math.random() * cards.length);
+                            cardToRemove = cards[randomIdx];
+                        }
+                    }
+                    botHand.removeCard(cardToRemove);
+                    cardToRemove.node.active = true;
+                    cardToRemove.setupDisplay(true);
+                    removedCards.push(cardToRemove);
+                    handIndices.push(i);
+                }
             }
         }
-        removedCards.sort((a, b) => a.rank - b.rank);
-        const positions = [
-            { x: 350, y: 400, z: 0 },
-            { x: 550, y: 400, z: 0 },
-            { x: 750, y: 400, z: 0 },
-            { x: 950, y: 400, z: 0 }
-        ];
-        for (let i = 0; i < removedCards.length; i++) {
-            const c = removedCards[i];
+
+        // Pair cards with their hand index
+        const combined = removedCards.map((card, idx) => ({ card, handIdx: handIndices[idx] }));
+        combined.sort((a, b) => a.card.rank - b.card.rank);
+
+        // Count ranks
+        const rankCount: Record<number, number> = {};
+        for (const entry of combined) {
+            rankCount[entry.card.rank] = (rankCount[entry.card.rank] || 0) + 1;
+        }
+        const duplicatedRanks = Object.keys(rankCount)
+            .filter(rank => rankCount[Number(rank)] > 1)
+            .map(Number);
+
+        if (duplicatedRanks.length > 0) {
+            // Lose 1 HP for each hand that played a duplicated rank (only once per hand)
+            const losers = combined.filter(x => duplicatedRanks.includes(x.card.rank));
+            const uniqueHandIdx = Array.from(new Set(losers.map(entry => entry.handIdx)));
+            for (const idx of uniqueHandIdx) {
+                console.log(`[DEBUG] Hand ${idx} loses 1 HP due to duplicate rank`);
+                this.handCardsControllers[idx].reduceHp(1);
+            }
+        } else {
+            // No duplicates: only highest rank loses 1 HP
+            const highestRank = combined[combined.length - 1].card.rank;
+            const losers = combined.filter(x => x.card.rank === highestRank);
+            const uniqueHandIdx = Array.from(new Set(losers.map(entry => entry.handIdx)));
+            for (const idx of uniqueHandIdx) {
+                console.log(`[DEBUG] Hand ${idx} loses 1 HP due to highest rank (${highestRank})`);
+                this.handCardsControllers[idx].reduceHp(1);
+            }
+        }
+
+        // Arrange cards visually
+        const positions = this.getCenteredPositions(combined.length);
+        for (let i = 0; i < combined.length; i++) {
+            const c = combined[i].card;
             const pos = positions[i];
             c.node.setWorldPosition(pos.x, pos.y, pos.z);
             c.node.setSiblingIndex(999);
         }
-        this.removedCardsOnTable = removedCards;
+        this.removedCardsOnTable = combined.map(x => x.card);
         this.chosenCard = null;
         this.waitTimer = 0;
         this.resultTimer = 0;
-        this.gameState = GameState.Result;
+
+
+        for (let i = 0; i < this.handCardsControllers.length; i++) {
+            console.log(`[DEBUG] Hand ${i} HP left: ${this.handCardsControllers[i].getHp()}`);
+        }
+
+        // Check for game over
+        const aliveHands = this.handCardsControllers.filter(h => h.getHp() > 0);
+        if (this.handCardsControllers[0].getHp() === 0 || aliveHands.length === 1) {
+            this.gameState = GameState.Over;
+        } else {
+            this.gameState = GameState.Result;
+        }
+    }
+    getCenteredPositions(count: number, centerX: number = 650, y: number = 400, z: number = 0, spacing: number = 200): { x: number, y: number, z: number }[] {
+        const positions: { x: number, y: number, z: number }[] = [];
+        const totalWidth = (count - 1) * spacing;
+        const startX = centerX - totalWidth / 2;
+        for (let i = 0; i < count; i++) {
+            positions.push({ x: startX + i * spacing, y, z });
+        }
+        return positions;
     }
 
     refillHands() {

@@ -8,10 +8,11 @@ const CARD_SPACING = 50;
 @ccclass('HandCardsController')
 export class HandCardsController extends Component {
     private cards: CardController[] = [];
+    private hp: number = 4;
 
     addCard(card: CardController) {
         if (this.cards.indexOf(card) === -1) {
-            card.inHand = true; // Mark as in hand
+            card.inHand = true;
             this.cards.push(card);
             this.sortAndArrange();
         }
@@ -20,14 +21,13 @@ export class HandCardsController extends Component {
     removeCard(card: CardController) {
         const idx = this.cards.indexOf(card);
         if (idx !== -1) {
-            card.inHand = false; // Mark as not in hand
+            card.inHand = false;
             this.cards.splice(idx, 1);
             this.sortAndArrange();
         }
     }
 
     private sortAndArrange() {
-        // Sort by rank, then by suit
         this.cards.sort((a, b) => {
             if (a.rank !== b.rank) {
                 return a.rank - b.rank;
@@ -35,7 +35,6 @@ export class HandCardsController extends Component {
             return a.suit - b.suit;
         });
 
-        // Center the hand
         const n = this.cards.length;
         const totalWidth = (n - 1) * CARD_SPACING;
         const startX = -totalWidth / 2;
@@ -43,11 +42,28 @@ export class HandCardsController extends Component {
         for (let i = 0; i < n; i++) {
             const cardNode = this.cards[i].node;
             cardNode.setPosition(new Vec3(startX + i * CARD_SPACING, 0, 0));
-            cardNode.setSiblingIndex(i); // Ensure stacking order matches hand order
+            cardNode.setSiblingIndex(i);
         }
     }
 
     getCards(): CardController[] {
         return this.cards.slice();
+    }
+
+    // HP system
+    getHp(): number {
+        return this.hp;
+    }
+
+    setHp(value: number) {
+        this.hp = Math.max(0, value);
+    }
+
+    addHp(amount: number) {
+        this.hp += amount;
+    }
+
+    reduceHp(amount: number) {
+        this.hp = Math.max(0, this.hp - amount);
     }
 }
