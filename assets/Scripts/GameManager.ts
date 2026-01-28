@@ -70,12 +70,17 @@ export class GameManager extends Component {
         );
     }
 
+    // Add this property to your GameManager class
+    private removedCardsOnTable: CardController[] = [];
+
     onKeyDown(event: EventKeyboard) {
         if (event.keyCode === KeyCode.KEY_A && this.chosenCard) {
+            const removedCards: CardController[] = [];
+
             // Remove chosen card from player hand
             this.handCardsControllers[0].removeCard(this.chosenCard);
-            this.chosenCard.setupDisplay(true); // Ensure card is face up
-            this.chosenCard.node.setPosition(200, 200, 0);
+            this.chosenCard.setupDisplay(true);
+            removedCards.push(this.chosenCard);
             this.chosenCard = null;
 
             // Remove a random card from each bot hand
@@ -86,10 +91,38 @@ export class GameManager extends Component {
                     const randomIdx = Math.floor(Math.random() * cards.length);
                     const cardToRemove = cards[randomIdx];
                     botHand.removeCard(cardToRemove);
-                    cardToRemove.setupDisplay(true); // Ensure card is face up
-                    cardToRemove.node.setPosition(200, 200, 0);
+                    cardToRemove.setupDisplay(true);
+                    removedCards.push(cardToRemove);
                 }
             }
+
+            // Sort removed cards by rank (ascending)
+            removedCards.sort((a, b) => a.rank - b.rank);
+
+            // Set global positions for the 4 removed cards
+            const positions = [
+                { x: 300, y: 400, z: 0 },
+                { x: 500, y: 400, z: 0 },
+                { x: 700, y: 400, z: 0 },
+                { x: 900, y: 400, z: 0 }
+            ];
+            for (let i = 0; i < removedCards.length; i++) {
+                const card = removedCards[i];
+                const pos = positions[i];
+                card.node.setWorldPosition(pos.x, pos.y, pos.z);
+                card.node.setSiblingIndex(999);
+            }
+
+            // Track these cards for later removal
+            this.removedCardsOnTable = removedCards;
+        }
+
+        // Remove displayed cards on D key
+        if (event.keyCode === KeyCode.KEY_D) {
+            for (const card of this.removedCardsOnTable) {
+                card.node.destroy();
+            }
+            this.removedCardsOnTable = [];
         }
     }
 }
