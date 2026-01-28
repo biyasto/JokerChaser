@@ -1,5 +1,4 @@
-import { _decorator, Component } from 'cc';
-import { CardDisplayController } from './CardDisplayController';
+import { _decorator, Component, Node, EventTouch } from 'cc';import { CardDisplayController } from './CardDisplayController';
 const { ccclass, property } = _decorator;
 
 const SUIT_NAMES = ['spade', 'club', 'diamond', 'heart'];
@@ -31,5 +30,14 @@ export class CardController extends Component {
         // const randomRank = Math.floor(Math.random() * 13) + 1; // 1-13
         // const randomSuit = Math.floor(Math.random() * 4); // 0-3
         // this.setup(randomRank, randomSuit, true);
+    }
+    onLoad() {
+        this.node.on(Node.EventType.TOUCH_END, this.onCardClicked, this);
+    }
+
+    onCardClicked(event: EventTouch) {
+        const suitName = SUIT_NAMES[this.suit] ?? 'spade';
+        console.log('Card clicked:', this.rank, suitName);
+        // Handle card click logic here
     }
 }
