@@ -12,6 +12,10 @@ export enum GameState {
     Pause,
     Over
 }
+export enum GameMode {
+    Normal,
+    SuddenDeath
+}
 
 @ccclass('GameManager')
 export class GameManager extends Component {
@@ -37,9 +41,13 @@ export class GameManager extends Component {
 
     private waitTimer: number = 0;
     private resultTimer: number = 0;
-    private waitDuration: number = 10;
+    private waitDuration: number = 20;
+    private waitDurationSD: number = 10;
     private resultDuration: number = 5;
 
+
+    public gameMode: GameMode = GameMode.Normal;
+    private turnCount: number = 1;
     public gameState: GameState = GameState.SetUp;
 
     onLoad() {
@@ -92,7 +100,8 @@ export class GameManager extends Component {
 
         if (this.gameState === GameState.WaitToSubmit) {
             this.waitTimer += dt;
-            const waitLeft = Math.max(0, this.waitDuration - this.waitTimer);
+            var dur = this.gameMode == GameMode.Normal? this.waitDuration : this.waitDurationSD;
+            const waitLeft = Math.max(0, dur - this.waitTimer);
             const waitSec = Math.floor(waitLeft);
             if (waitSec !== this.lastWaitLogSec) {
                 if (this.debugTimerLog) {
@@ -100,7 +109,8 @@ export class GameManager extends Component {
                 }
                 this.lastWaitLogSec = waitSec;
             }
-            if (this.waitTimer >= this.waitDuration) {
+            var dur = this.gameMode == GameMode.Normal? this.waitDuration : this.waitDurationSD;
+            if (this.waitTimer >= dur) {
                 // Finalize card selection
                 let card = this.chosenCard;
                 if (!card) {
@@ -208,21 +218,43 @@ export class GameManager extends Component {
             .map(Number);
 
         if (duplicatedRanks.length > 0) {
-            // Lose 1 HP for each hand that played a duplicated rank (only once per hand)
-            const losers = combined.filter(x => duplicatedRanks.includes(x.card.rank));
-            const uniqueHandIdx = Array.from(new Set(losers.map(entry => entry.handIdx)));
-            for (const idx of uniqueHandIdx) {
-                console.log(`[DEBUG] Hand ${idx} loses 1 HP due to duplicate rank`);
-                this.handCardsControllers[idx].reduceHp(1);
+            // Find which hands should lose HP
+            const aliveHands = this.handCardsControllers
+                .map((h, idx) => ({ h, idx }))
+                .filter(x => x.h.getHp() > 0);
+
+            const handsToLoseHp = combined
+                .filter(entry => duplicatedRanks.includes(entry.card.rank))
+                .map(entry => entry.handIdx);
+
+            // If all alive hands would lose HP, skip reduction
+            const allWouldDie = aliveHands.every(x => handsToLoseHp.includes(x.idx));
+            if (!allWouldDie || this.gameMode === GameMode.SuddenDeath) {
+                for (const idx of handsToLoseHp) {
+                    if(this.gameMode== GameMode.Normal)
+                    {
+                        this.handCardsControllers[idx].reduceHp(1);
+                    }
+                    else
+                    {
+                        this.handCardsControllers[idx].reduceHp(this.handCardsControllers[idx].getHp());
+                    }
+                }
             }
         } else {
-            // No duplicates: only highest rank loses 1 HP
-            const highestRank = combined[combined.length - 1].card.rank;
-            const losers = combined.filter(x => x.card.rank === highestRank);
+            // No duplicates: lowest card(s) lose HP
+            const minRank = Math.min(...combined.map(entry => entry.card.rank));
+            const losers = combined.filter(entry => entry.card.rank === minRank);
             const uniqueHandIdx = Array.from(new Set(losers.map(entry => entry.handIdx)));
             for (const idx of uniqueHandIdx) {
-                console.log(`[DEBUG] Hand ${idx} loses 1 HP due to highest rank (${highestRank})`);
-                this.handCardsControllers[idx].reduceHp(1);
+                if(this.gameMode== GameMode.Normal)
+                {
+                    this.handCardsControllers[idx].reduceHp(1);
+                }
+                else
+                {
+                    this.handCardsControllers[idx].reduceHp(this.handCardsControllers[idx].getHp());
+                }
             }
         }
 
@@ -239,7 +271,6 @@ export class GameManager extends Component {
         this.waitTimer = 0;
         this.resultTimer = 0;
 
-
         for (let i = 0; i < this.handCardsControllers.length; i++) {
             console.log(`[DEBUG] Hand ${i} HP left: ${this.handCardsControllers[i].getHp()}`);
         }
@@ -251,7 +282,14 @@ export class GameManager extends Component {
         } else {
             this.gameState = GameState.Result;
         }
+
+        this.turnCount++;
+        if (this.turnCount > 19 && this.gameMode === GameMode.Normal) {
+            this.gameMode = GameMode.SuddenDeath;
+            console.log('Game mode changed to Sudden Death!');
+        }
     }
+
     getCenteredPositions(count: number, centerX: number = 650, y: number = 400, z: number = 0, spacing: number = 200): { x: number, y: number, z: number }[] {
         const positions: { x: number, y: number, z: number }[] = [];
         const totalWidth = (count - 1) * spacing;

@@ -66,16 +66,42 @@ export class CardController extends Component {
         this.node.setPosition(localPos);
     }
 
+    typescript
     onDragEnd(event: EventTouch) {
         if (!this.isDragging) return;
-        // Stop if card is no longer in hand (picked by timer)
-        if (!this.inHand) {
-            this.isDragging = false;
-            GameManager.instance.playerDraggingCard = null;
-            return;
-        }
         this.isDragging = false;
-        if (this.dragCallback) this.dragCallback(this);
+
+        // Stop if card is no longer in hand (picked by timer)
+        if (!this.inHand) return;
+
+        // Get card world position
+        const cardWorldPos = this.node.getWorldPosition();
+
+        // Get submit area and its world rect
+        const submitArea = GameManager.instance.summitArea;
+        const submitTransform = submitArea.getComponent(UITransform);
+        const submitWorldPos = submitArea.getWorldPosition();
+        const submitSize = submitTransform.contentSize;
+        const submitAnchor = submitTransform.anchorPoint;
+
+        // Calculate submit area rect in world space
+        const left = submitWorldPos.x - submitSize.width * submitAnchor.x;
+        const right = left + submitSize.width;
+        const bottom = submitWorldPos.y - submitSize.height * submitAnchor.y;
+        const top = bottom + submitSize.height;
+
+        // Check if card is inside submit area
+        if (
+            cardWorldPos.x >= left &&
+            cardWorldPos.x <= right &&
+            cardWorldPos.y >= bottom &&
+            cardWorldPos.y <= top
+        ) {
+            if (this.dragCallback) this.dragCallback(this);
+        } else {
+            // Return to hand if not in submit area
+            if (this.returnToHand) this.returnToHand();
+        }
         GameManager.instance.playerDraggingCard = null;
     }
 
