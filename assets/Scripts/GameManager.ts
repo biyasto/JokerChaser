@@ -3,6 +3,7 @@ import { _decorator, Component, Node, Prefab, instantiate, input, Input, KeyCode
 import { CardController } from './CardController';
 import { HandCardsController } from './HandCardsController';
 const { ccclass, property } = _decorator;
+import { BotStrategy } from './BotStrategy';
 
 export enum GameState {
     SetUp,
@@ -181,48 +182,15 @@ export class GameManager extends Component {
         const removedCards: CardController[] = [playerCard];
         const handIndices: number[] = [0]; // 0 = player, 1-3 = bots
 
-// --- Bots: duplicate avoidance is less important (50% chance to care) ---
         for (let i = 1; i < 4; i++) {
             const botHand = this.handCardsControllers[i];
-            if (botHand.getHp() > 0) {
-                const cards = botHand.getCards();
-                if (cards.length > 0) {
-                    // Gather all cards left in all hands (excluding this bot)
-                    const allOtherCards: number[] = [];
-                    for (let j = 0; j < 4; j++) {
-                        if (j !== i && this.handCardsControllers[j].getHp() > 0) {
-                            allOtherCards.push(...this.handCardsControllers[j].getCards().map(c => c.rank));
-                        }
-                    }
-                    // Find cards in bot's hand whose rank is unique among all hands
-                    const safeCards = cards.filter(c => !allOtherCards.includes(c.rank));
-                    let cardToRemove: CardController;
-                    if (botHand.getHp() === 1) {
-                        // If low HP, always play the lowest card
-                        cardToRemove = cards.reduce((min, c) => c.rank < min.rank ? c : min, cards[0]);
-                    } else if (safeCards.length > 0 && Math.random() < 0.5) {
-                        // 50% chance to care about duplicates
-                        cardToRemove = safeCards[Math.floor(Math.random() * safeCards.length)];
-                    } else {
-                        // Fallback: each bot behaves differently
-                        if (i === 1) {
-                            // Bot 1: play lowest
-                            cardToRemove = cards.reduce((min, c) => c.rank < min.rank ? c : min, cards[0]);
-                        } else if (i === 2) {
-                            // Bot 2: play highest
-                            cardToRemove = cards.reduce((max, c) => c.rank > max.rank ? c : max, cards[0]);
-                        } else {
-                            // Bot 3: play random
-                            const randomIdx = Math.floor(Math.random() * cards.length);
-                            cardToRemove = cards[randomIdx];
-                        }
-                    }
-                    botHand.removeCard(cardToRemove);
-                    cardToRemove.node.active = true;
-                    cardToRemove.setupDisplay(true);
-                    removedCards.push(cardToRemove);
-                    handIndices.push(i);
-                }
+            const cardToRemove = BotStrategy.pickCard(i, botHand, this.handCardsControllers);
+            if (cardToRemove) {
+                botHand.removeCard(cardToRemove);
+                cardToRemove.node.active = true;
+                cardToRemove.setupDisplay(true);
+                removedCards.push(cardToRemove);
+                handIndices.push(i);
             }
         }
 
