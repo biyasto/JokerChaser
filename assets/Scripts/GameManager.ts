@@ -27,10 +27,17 @@ export class GameManager extends Component {
 
     @property(Node)
     summitArea: Node = null!; // Assign in editor
+    @property
+    public debugTimerLog: boolean = true;
 
     private chosenCard: CardController | null = null;
     private removedCardsOnTable: CardController[] = [];
     private summitPos: Vec3 = new Vec3();
+
+    private waitTimer: number = 0;
+    private resultTimer: number = 0;
+    private waitDuration: number = 10;
+    private resultDuration: number = 5;
 
     public gameState: GameState = GameState.SetUp;
 
@@ -57,7 +64,6 @@ export class GameManager extends Component {
                             cardNode.parent = this.cardParents[0];
                             cardController.inHand = true;
                             cardNode.setPosition(0, 0, 0);
-                            // Add back to hand and sort
                             this.handCardsControllers[0].addCard(cardController);
                             (this.handCardsControllers[0] as HandCardsController).sortAndArrange();
                         };
@@ -70,29 +76,139 @@ export class GameManager extends Component {
             }
         }
         input.on(Input.EventType.KEY_DOWN, this.onKeyDown, this);
-        this.gameState= GameState.WaitToSubmit;
+        this.startWaitToSubmit();
     }
 
+    private lastWaitLogSec: number = -1;
+    private lastResultLogSec: number = -1;
+
+    update(dt: number) {
+        // Snap back if not WaitToSubmit and player is dragging
+        if (this.gameState !== GameState.WaitToSubmit && this.playerDraggingCard) {
+            this.playerDraggingCard.returnToHand();
+            this.playerDraggingCard = null;
+        }
+
+        if (this.gameState === GameState.WaitToSubmit) {
+            this.waitTimer += dt;
+            const waitLeft = Math.max(0, this.waitDuration - this.waitTimer);
+            const waitSec = Math.floor(waitLeft);
+            if (waitSec !== this.lastWaitLogSec) {
+                if (this.debugTimerLog) {
+                    console.log(`[STATE: WaitToSubmit] Time left: ${waitSec}s`);
+                }
+                this.lastWaitLogSec = waitSec;
+            }
+            if (this.waitTimer >= this.waitDuration) {
+                // Finalize card selection
+                let card = this.chosenCard;
+                if (!card) {
+                    // If player is dragging a card, pick that
+                    if (this.playerDraggingCard) {
+                        card = this.playerDraggingCard;
+                        card.forceStopDragging(); 
+                        this.handCardsControllers[0].removeCard(card);
+                        this.playerDraggingCard = null;
+                    } else {
+                        // Otherwise, pick a random card from hand
+                        const playerHand = this.handCardsControllers[0];
+                        const cards = playerHand.getCards();
+                        if (cards.length > 0) {
+                            const randomIdx = Math.floor(Math.random() * cards.length);
+                            card = cards[randomIdx];
+                            playerHand.removeCard(card);
+                        }
+                    }
+                }
+                if (card) {
+                    this.handleResultPhase(card);
+                }
+            }
+        } else if (this.gameState === GameState.Result) {
+            this.resultTimer += dt;
+            const resultLeft = Math.max(0, this.resultDuration - this.resultTimer);
+            const resultSec = Math.floor(resultLeft);
+            if (resultSec !== this.lastResultLogSec) {
+                if (this.debugTimerLog) {
+                    console.log(`[STATE: Result] Time left: ${resultSec}s`);
+                }
+                this.lastResultLogSec = resultSec;
+            }
+            if (this.resultTimer >= this.resultDuration) {
+                // Destroy cards on table
+                for (const card of this.removedCardsOnTable) {
+                    card.node.destroy();
+                }
+                this.removedCardsOnTable = [];
+                // Check if player has cards left
+                const playerHand = this.handCardsControllers[0];
+                if (playerHand.getCards().length === 0) {
+                    this.gameState = GameState.Over;
+                } else {
+                    this.startWaitToSubmit();
+                }
+            }
+        }
+    }    private startWaitToSubmit() {
+        this.gameState = GameState.WaitToSubmit;
+        this.waitTimer = 0;
+        this.chosenCard = null;
+    }
+    private playerDraggingCard: CardController | null = null;
+
+
     onCardDragged(card: CardController) {
-        // Check overlap with summit area
-        const cardBox = card.node.getComponent(UITransform)!.getBoundingBoxToWorld();
-        const summitBox = this.summitArea.getComponent(UITransform)!.getBoundingBoxToWorld();
-        if (!cardBox.intersects(summitBox)) {
-            card.returnToHand();
-            return;
-        }
-        if (this.chosenCard && this.chosenCard !== card) {
-            this.handCardsControllers[0].addCard(this.chosenCard);
-            (this.handCardsControllers[0] as HandCardsController).sortAndArrange();
+        if (this.gameState !== GameState.WaitToSubmit) return;
+
+        // If a card was already chosen, return it to hand
+        if (this.chosenCard) {
             this.chosenCard.returnToHand();
+            this.handCardsControllers[0].addCard(this.chosenCard);
         }
-        // Remove from hand, move and set as chosen
+
+        // Remove new card from hand and set as chosen
         this.handCardsControllers[0].removeCard(card);
         this.chosenCard = card;
         card.node.setWorldPosition(350, 400, 0);
-
-        // Sort and arrange the player's hand after moving the card
         (this.handCardsControllers[0] as HandCardsController).sortAndArrange();
+
+        // Track the dragging card
+        this.playerDraggingCard = card;
+    }
+
+    private handleResultPhase(playerCard: CardController) {
+        // Bots give a card
+        const removedCards: CardController[] = [playerCard];
+        for (let i = 1; i < 4; i++) {
+            const botHand = this.handCardsControllers[i];
+            const cards = botHand.getCards();
+            if (cards.length > 0) {
+                const randomIdx = Math.floor(Math.random() * cards.length);
+                const cardToRemove = cards[randomIdx];
+                botHand.removeCard(cardToRemove);
+                cardToRemove.node.active = true;
+                cardToRemove.setupDisplay(true);
+                removedCards.push(cardToRemove);
+            }
+        }
+        removedCards.sort((a, b) => a.rank - b.rank);
+        const positions = [
+            { x: 350, y: 400, z: 0 },
+            { x: 550, y: 400, z: 0 },
+            { x: 750, y: 400, z: 0 },
+            { x: 950, y: 400, z: 0 }
+        ];
+        for (let i = 0; i < removedCards.length; i++) {
+            const c = removedCards[i];
+            const pos = positions[i];
+            c.node.setWorldPosition(pos.x, pos.y, pos.z);
+            c.node.setSiblingIndex(999);
+        }
+        this.removedCardsOnTable = removedCards;
+        this.chosenCard = null;
+        this.waitTimer = 0;
+        this.resultTimer = 0;
+        this.gameState = GameState.Result;
     }
 
     refillHands() {
@@ -103,7 +219,6 @@ export class GameManager extends Component {
             for (const card of cards) {
                 card.node.destroy();
             }
-            // Clear the internal array
             (hand as any).cards = [];
         }
 
@@ -139,40 +254,8 @@ export class GameManager extends Component {
 
     onKeyDown(event: EventKeyboard) {
         if (event.keyCode === KeyCode.KEY_A && this.chosenCard) {
-            const removedCards: CardController[] = [];
-            this.chosenCard.setupDisplay(true);
-            removedCards.push(this.chosenCard);
-
-            for (let i = 1; i < 4; i++) {
-                const botHand = this.handCardsControllers[i];
-                const cards = botHand.getCards();
-                if (cards.length > 0) {
-                    const randomIdx = Math.floor(Math.random() * cards.length);
-                    const cardToRemove = cards[randomIdx];
-                    botHand.removeCard(cardToRemove);
-                    cardToRemove.node.active = true;
-                    cardToRemove.setupDisplay(true);
-                    removedCards.push(cardToRemove);
-                }
-            }
-
-            removedCards.sort((a, b) => a.rank - b.rank);
-
-            const positions = [
-                { x: 350, y: 400, z: 0 },
-                { x: 550, y: 400, z: 0 },
-                { x: 750, y: 400, z: 0 },
-                { x: 950, y: 400, z: 0 }
-            ];
-            for (let i = 0; i < removedCards.length; i++) {
-                const card = removedCards[i];
-                const pos = positions[i];
-                card.node.setWorldPosition(pos.x, pos.y, pos.z);
-                card.node.setSiblingIndex(999);
-            }
-
-            this.removedCardsOnTable = removedCards;
-            this.chosenCard = null;
+            // For debug: force submit chosen card
+            this.handleResultPhase(this.chosenCard);
         }
 
         if (event.keyCode === KeyCode.KEY_D) {

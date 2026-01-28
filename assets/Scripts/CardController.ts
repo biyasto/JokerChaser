@@ -48,10 +48,18 @@ export class CardController extends Component {
         if (!GameManager.instance || GameManager.instance.gameState !== GameState.WaitToSubmit) return;
         this.isDragging = true;
         this.node.setSiblingIndex(999);
+        GameManager.instance.playerDraggingCard = this; // Track dragging
     }
 
     onDragMove(event: EventTouch) {
         if (!this.isDragging) return;
+        // Stop dragging if card is no longer in hand (picked by timer)
+        if (!this.inHand || !GameManager.instance || GameManager.instance.gameState !== GameState.WaitToSubmit) {
+            this.isDragging = false;
+            this.returnToHand();
+            GameManager.instance.playerDraggingCard = null;
+            return;
+        }
         const worldPos = event.getUILocation();
         const parent = this.node.parent!;
         const localPos = parent.getComponent(UITransform)!.convertToNodeSpaceAR(new Vec3(worldPos.x, worldPos.y, 0));
@@ -60,15 +68,20 @@ export class CardController extends Component {
 
     onDragEnd(event: EventTouch) {
         if (!this.isDragging) return;
+        // Stop if card is no longer in hand (picked by timer)
+        if (!this.inHand) {
+            this.isDragging = false;
+            GameManager.instance.playerDraggingCard = null;
+            return;
+        }
         this.isDragging = false;
         if (this.dragCallback) this.dragCallback(this);
+        GameManager.instance.playerDraggingCard = null;
     }
 
-    snapToSummit(pos: Vec3) {
-        this.node.setWorldPosition(pos);
-        this.inHand = false;
+    public forceStopDragging() {
+        this.isDragging = false;
     }
-
     // This will be replaced by GameManager at runtime
     returnToHand() {
         this.inHand = true;
