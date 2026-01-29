@@ -1,4 +1,5 @@
-// In assets/Scripts/SoundManager.ts
+
+// `assets/Scripts/SoundManager.ts`
 import { _decorator, Component, AudioSource, resources, Node, director, AudioClip } from 'cc';
 const { ccclass, property } = _decorator;
 
@@ -9,8 +10,11 @@ export class SoundManager extends Component {
     private bgmSource: AudioSource | null = null;
     private sfxSource: AudioSource | null = null;
 
-    private bgmEnabled: boolean = true;
-    private sfxEnabled: boolean = true;
+    // keep last BGM path so we can replay it
+    private currentBgmPath: string = 'Audio/BGM';
+
+    public bgmEnabled: boolean = true;
+    public sfxEnabled: boolean = true;
 
     public static get instance(): SoundManager {
         if (!this._instance) {
@@ -33,10 +37,19 @@ export class SoundManager extends Component {
         this.sfxSource = this.node.addComponent(AudioSource);
     }
 
+    start() {
+        this.playBGM(this.currentBgmPath);
+    }
+
     setBGMEnabled(enabled: boolean) {
         this.bgmEnabled = enabled;
-        if (!enabled && this.bgmSource) {
+        if (!this.bgmSource) return;
+
+        if (!enabled) {
             this.bgmSource.stop();
+        } else {
+            // when turning on, play current BGM again
+            this.playBGM(this.currentBgmPath);
         }
     }
 
@@ -46,6 +59,8 @@ export class SoundManager extends Component {
 
     playBGM(path: string) {
         if (!this.bgmEnabled) return;
+        this.currentBgmPath = path;
+
         resources.load(path, AudioClip, (err, clip) => {
             if (err || !clip) {
                 console.error('Failed to load BGM:', path);

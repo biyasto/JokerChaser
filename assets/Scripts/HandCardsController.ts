@@ -2,6 +2,7 @@
 import { _decorator, Component, Node, Vec3 } from 'cc';
 import { CardController, getCardRankValue } from './CardController';
 import { AvatarsController } from './AvatarsController';
+import {SoundManager} from "db://assets/Scripts/SoundManager";
 
 const { ccclass, property } = _decorator;
 const CARD_SPACING = 50;
@@ -71,5 +72,6 @@ export class HandCardsController extends Component {
     reduceHp(amount: number) {
         this.hp = Math.max(0, this.hp - amount);
         this.avatarController?.setHeartSprite(this.hp);
+        SoundManager.instance.playSFX('Audio/Hurt');
     }
 }

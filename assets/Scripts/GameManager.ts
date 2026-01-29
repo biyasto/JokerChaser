@@ -7,6 +7,7 @@ import { BotStrategy } from './BotStrategy';
 import { SceneManager } from './SceneManager';
 import { SettingUIController } from './SettingUIController';
 import { RuleUIController } from './RuleUIController';
+import {SoundManager} from "db://assets/Scripts/SoundManager";
 
 export enum GameState {
     SetUp,
@@ -155,6 +156,8 @@ export class GameManager extends Component {
                             cardNode.setPosition(0, 0, 0);
                             targetHand.addCard(cardController);
                             (targetHand as HandCardsController).sortAndArrange();
+                            SoundManager.instance?.playSFX('Audio/Card-Shuffle');
+
                         })
                         .start();
                 } else {
@@ -316,7 +319,7 @@ export class GameManager extends Component {
         const aliveCount = this.handCardsControllers.filter(h => h.getHp() > 0).length;
         // Get centered positions
         const positions = this.getCenteredPositions(aliveCount);
-        // Set the card to the first spot
+        SoundManager.instance?.playSFX('Audio/Hit');        // Set the card to the first spot
         card.node.setWorldPosition(positions[0].x, positions[0].y, positions[0].z);
         (this.handCardsControllers[0] as HandCardsController).sortAndArrange();
         (this.handCardsControllers[0] as HandCardsController).sortAndArrange();
@@ -341,6 +344,7 @@ export class GameManager extends Component {
                 handIndices.push(i);
             }
         }
+        SoundManager.instance?.playSFX('Audio/Card-Shuffle');
 
         // Pair cards with their hand index
         const combined = removedCards.map((card, idx) => ({ card, handIdx: handIndices[idx] }));
@@ -459,6 +463,10 @@ export class GameManager extends Component {
                             cardController.inHand = true;
                             cardNode.setPosition(0, 0, 0);
                             this.handCardsControllers[0].addCard(cardController);
+                            // play SFX when refilling a card to player
+                            if (handIdx === 0) {
+                                SoundManager.instance?.playSFX('Audio/Card-Shuffle');
+                            }
                             (this.handCardsControllers[0] as HandCardsController).sortAndArrange();
                         };
                     } else {
@@ -489,17 +497,20 @@ export class GameManager extends Component {
         if (this.settingUI) {
             this.pauseGame();
             this.settingUI.showUI();
+            SoundManager.instance?.playSFX('Audio/Hit')
         }
     }
 
     openRuleUI() {
         if (this.ruleUI) {
+            SoundManager.instance?.playSFX('Audio/Hit')
             this.pauseGame();
             this.ruleUI.showUI();
         }
     }
 
     returnToMenuScene() {
+        SoundManager.instance?.playSFX('Audio/Hit')
         SceneManager.instance.goToMenuScene();
     }
 

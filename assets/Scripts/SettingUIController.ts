@@ -42,26 +42,36 @@ export class SettingUIController extends Component {
         if(GameManager.instance!=null){
             GameManager.instance.resumeGame();
         }
+        SoundManager.instance?.playSFX('Audio/Hit')
+
     }
 
     onBGMOn() {
         SoundManager.instance.setBGMEnabled(true);
         this.updateButtons();
+        SoundManager.instance?.playSFX('Audio/Hit')
+
     }
 
     onBGMOff() {
         SoundManager.instance.setBGMEnabled(false);
         this.updateButtons();
+        SoundManager.instance?.playSFX('Audio/Hit')
+
     }
 
     onSFXOn() {
         SoundManager.instance.setSFXEnabled(true);
         this.updateButtons();
+        SoundManager.instance?.playSFX('Audio/Hit')
+
     }
 
     onSFXOff() {
         SoundManager.instance.setSFXEnabled(false);
         this.updateButtons();
+        SoundManager.instance?.playSFX('Audio/Hit')
+
     }
 
     updateButtons() {
