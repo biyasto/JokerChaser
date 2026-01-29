@@ -13,7 +13,7 @@ export class HandCardsController extends Component {
     private hp: number = 4;
 
     @property(AvatarsController)
-    avatarController: AvatarsController | null = null;
+    public avatarController: AvatarsController | null = null;
 
     addCard(card: CardController) {
         if (this.cards.indexOf(card) === -1) {

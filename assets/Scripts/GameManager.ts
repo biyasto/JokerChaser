@@ -60,7 +60,7 @@ export class GameManager extends Component {
 
     private waitTimer: number = 0;
     private resultTimer: number = 0;
-    private waitDuration: number = 20;
+    private waitDuration: number = 30;
     private waitDurationSD: number = 10;
     private resultDuration: number = 5;
 
@@ -79,6 +79,8 @@ export class GameManager extends Component {
     OverUI: RichText = null!;
     @property(RichText)
     OverText: RichText = null!;
+    @property(RichText)
+    WarningText: RichText = null!;
 
     private lastWaitLogSec: number = -1;
     private lastResultLogSec: number = -1;
@@ -275,9 +277,19 @@ export class GameManager extends Component {
                 }
 
                 this.setTurnCount(this.turnCount + 1);
-                if (this.turnCount > 19 && this.gameMode === GameMode.Normal) {
+                if (this.turnCount >= 1 && this.gameMode === GameMode.Normal) {
                     this.gameMode = GameMode.SuddenDeath;
                     console.log('Game mode changed to Sudden Death!');
+
+                    const aliveHands = this.handCardsControllers.filter(h => h.getHp() > 0);
+                    for (const hand of aliveHands) {
+                        hand.avatarController?.turnOnWarning();
+                    }
+                    this.WarningText.node.active = true;
+                    this.scheduleOnce(() => {
+                        this.WarningText.node.active = false;
+                    }, 1);
+
                 }
 
                 this.removedCardsOnTable = [];

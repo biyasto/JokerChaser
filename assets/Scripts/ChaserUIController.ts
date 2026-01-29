@@ -105,17 +105,28 @@ export class ChaserUIController extends Component {
     checkValue(values: number[]) {
         if (!values || values.length === 0) return;
 
+        // Filter out dead players (value 0) and track original indices
+        const aliveEntries = values
+            .map((value, originalIndex) => ({ value, originalIndex }))
+            .filter(entry => entry.value !== 0);
 
-        // replace any value == 1 with 14
-        const normalized = values.map(v => v === 1 ? 14 : v);
-        console.log('[ChaserUIController] normalized values:', normalized);
+        if (aliveEntries.length === 0) {
+            console.log('[ChaserUIController] All players dead - no icons to move');
+            return;
+        }
 
+        const aliveValues = aliveEntries.map(entry => entry.value);
+        const aliveIndices = aliveEntries.map(entry => entry.originalIndex);
 
-        const uniqueIndices = this.getUniqueSortedIndices(normalized);
+        // Replace any value == 1 with 14 (only for alive players)
+        const normalized = aliveValues.map(v => v === 1 ? 14 : v);
+        console.log('[ChaserUIController] normalized values (alive only):', normalized);
+        console.log('[ChaserUIController] corresponding alive indices:', aliveIndices);
+
+        const uniqueIndices = this.getUniqueSortedIndicesForAlive(normalized, aliveIndices);
         const baseTargets = [400, 300, 200, 100];
 
         if (uniqueIndices.length === 0) {
-            // no unique icons move, but joker still may move (no movedTargetXs)
             this.moveJokerAfterIcons(normalized, 0, []);
             return;
         }
@@ -140,18 +151,25 @@ export class ChaserUIController extends Component {
             delay += this.moveDuration;
         }
 
-        // pass the actual moved X positions to joker
         this.moveJokerAfterIcons(normalized, delay, targetXs);
     }
-    removeIconAt(index: number, destroyNode: boolean = true): void {
-        if (index < 0 || index >= this.icons.length) return;
 
-        const icon = this.icons[index];
-        if (icon && destroyNode) {
-            icon.node.removeFromParent();
-            icon.node.destroy();
+    private getUniqueSortedIndicesForAlive(values: number[], originalIndices: number[]): number[] {
+        const countMap = new Map<number, number>();
+
+        for (const v of values) {
+            countMap.set(v, (countMap.get(v) || 0) + 1);
         }
 
-        this.icons.splice(index, 1);
+        const pairs: { index: number; value: number }[] = [];
+        for (let i = 0; i < values.length; i++) {
+            const v = values[i];
+            if ((countMap.get(v) || 0) === 1) {
+                pairs.push({ index: originalIndices[i], value: v });
+            }
+        }
+
+        pairs.sort((a, b) => a.value - b.value);
+        return pairs.map(p => p.index);
     }
 }
