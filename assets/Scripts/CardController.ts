@@ -1,3 +1,4 @@
+// File: `assets/Scripts/CardController.ts`
 import { _decorator, Component, Node, EventTouch, Vec3, UITransform } from 'cc';
 import { CardDisplayController } from './CardDisplayController';
 const { ccclass, property } = _decorator;
@@ -47,6 +48,17 @@ export class CardController extends Component {
             (this.displayNode && this.displayNode.getComponent(CardDisplayController));
         if (display) {
             display.setupCard(this.rank, suitName, isFaceUp);
+        }
+    }
+
+    // Call this when bot plays the card to run flip animation
+    revealWithFlip() {
+        const suitNames = ['spade', 'club', 'heart', 'diamond'];
+        const suitName = suitNames[this.suit] || 'spade';
+        const display = this.getComponent(CardDisplayController) ||
+            (this.displayNode && this.displayNode.getComponent(CardDisplayController));
+        if (display) {
+            display.setupCard(this.rank, suitName, true);
         }
     }
 

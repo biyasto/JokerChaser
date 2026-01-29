@@ -1,5 +1,5 @@
 // File: assets/Scripts/GameManager.ts
-import { _decorator, Component, Node, Prefab, instantiate, input, Input, KeyCode, EventKeyboard, Vec3, UITransform } from 'cc';
+import { _decorator,RichText, Component, Node, Prefab, instantiate, input, Input, KeyCode, EventKeyboard, Vec3, UITransform } from 'cc';
 import { CardController, getCardRankValue } from './CardController';
 import { HandCardsController } from './HandCardsController';
 const { ccclass, property } = _decorator;
@@ -62,18 +62,26 @@ export class GameManager extends Component {
     public gameState: GameState = GameState.SetUp;
     private prevState: GameState = GameState.SetUp;
 
+    @property(RichText)
+    turnText: RichText = null!;
+    @property(RichText)
+    timerText: RichText = null!;
+
+
     onLoad() {
         GameManager.instance = this;
     }
 
     start() {
         this.summitPos = this.summitArea.getWorldPosition();
+        this.updateTurnText();
 
         for (let handIdx = 0; handIdx < 4; handIdx++) {
             const suit = handIdx;
-            for (let rank = 1; rank <= 13; rank++) {
+            for (let rank = 1; rank <= 1; rank++) {
                 const cardNode = instantiate(this.cardPrefab);
                 cardNode.parent = this.cardParents[handIdx];
+                cardNode.setScale(0.7, 0.7, 0.7);
                 const cardController = cardNode.getComponent(CardController);
                 if (cardController) {
                     const isFaceUp = handIdx === 0;
@@ -103,6 +111,21 @@ export class GameManager extends Component {
     private lastWaitLogSec: number = -1;
     private lastResultLogSec: number = -1;
 
+    getTurnCount(): number {
+        return this.turnCount;
+    }
+    setTurnCount(value: number) {
+        this.turnCount = value;
+        this.updateTurnText();
+        console.log("turn:"+this.turnCount);
+    }
+
+    private updateTurnText() {
+        if (this.turnText) {
+            // Example: show \"Turn: 3\"
+            this.turnText.string = `Turn: ${this.turnCount}`;
+        }
+    }
     update(dt: number) {
         // Snap back if not WaitToSubmit and player is dragging
         if (this.gameState !== GameState.WaitToSubmit && this.playerDraggingCard) {
@@ -119,6 +142,7 @@ export class GameManager extends Component {
                 if (this.debugTimerLog) {
                     console.log(`[STATE: WaitToSubmit] Time left: ${waitSec}s`);
                 }
+                this.timerText.string = `Time Left: ${waitSec}s`;
                 this.lastWaitLogSec = waitSec;
             }
             var dur = this.gameMode == GameMode.Normal? this.waitDuration : this.waitDurationSD;
@@ -158,15 +182,48 @@ export class GameManager extends Component {
                 this.lastResultLogSec = resultSec;
             }
             if (this.resultTimer >= this.resultDuration) {
+
                 // Destroy cards on table
                 for (const card of this.removedCardsOnTable) {
                     card.node.destroy();
                 }
+
+                const aliveHands = this.handCardsControllers.filter(h => h.getHp() > 0);
+                if (this.handCardsControllers[0].getHp() === 0 ){
+                    this.gameState = GameState.Over;
+                    if(aliveHands.length >= 1) {
+                        console.log("You Lose!");
+                        return;
+                    }
+                    else{
+                        console.log("You Draw!");
+                        return;
+                    }
+                }
+                else if(aliveHands.length==1){
+                    this.gameState = GameState.Over;
+                    console.log("You Win!");
+                    return;
+                }
+
+
+
+                this.setTurnCount(this.turnCount + 1);
+                if (this.turnCount > 19 && this.gameMode === GameMode.Normal) {
+                    this.gameMode = GameMode.SuddenDeath;
+                    console.log('Game mode changed to Sudden Death!');
+                }
+
                 this.removedCardsOnTable = [];
                 // Check if player has cards left
                 const playerHand = this.handCardsControllers[0];
                 if (playerHand.getCards().length === 0) {
-                    this.gameState = GameState.Over;
+                    if( this.gameMode === GameMode.SuddenDeath)
+                    {   this.gameState = GameState.Over;
+                        console.log("You Draw!");
+                    }else{
+                        this.refillHands()
+                    }
                 } else {
                     this.startWaitToSubmit();
                 }
@@ -193,7 +250,13 @@ export class GameManager extends Component {
         // Remove new card from hand and set as chosen
         this.handCardsControllers[0].removeCard(card);
         this.chosenCard = card;
-        card.node.setWorldPosition(350, 400, 0);
+        // Get the number of alive players
+        const aliveCount = this.handCardsControllers.filter(h => h.getHp() > 0).length;
+// Get centered positions
+        const positions = this.getCenteredPositions(aliveCount);
+// Set the card to the first spot
+        card.node.setWorldPosition(positions[0].x, positions[0].y, positions[0].z);
+        (this.handCardsControllers[0] as HandCardsController).sortAndArrange();
         (this.handCardsControllers[0] as HandCardsController).sortAndArrange();
 
         // Track the dragging card
@@ -211,7 +274,7 @@ export class GameManager extends Component {
             if (cardToRemove) {
                 botHand.removeCard(cardToRemove);
                 cardToRemove.node.active = true;
-                cardToRemove.setupDisplay(true);
+                cardToRemove.revealWithFlip(); // run flip animation when bot gives card
                 removedCards.push(cardToRemove);
                 handIndices.push(i);
             }
@@ -290,22 +353,12 @@ export class GameManager extends Component {
             console.log(`[DEBUG] Hand ${i} HP left: ${this.handCardsControllers[i].getHp()}`);
         }
 
-        // Check for game over
-        const aliveHands = this.handCardsControllers.filter(h => h.getHp() > 0);
-        if (this.handCardsControllers[0].getHp() === 0 || aliveHands.length === 1) {
-            this.gameState = GameState.Over;
-        } else {
-            this.gameState = GameState.Result;
-        }
+        this.gameState = GameState.Result;
+        this.timerText.string = ``;
 
-        this.turnCount++;
-        if (this.turnCount > 19 && this.gameMode === GameMode.Normal) {
-            this.gameMode = GameMode.SuddenDeath;
-            console.log('Game mode changed to Sudden Death!');
-        }
     }
 
-    getCenteredPositions(count: number, centerX: number = 650, y: number = 400, z: number = 0, spacing: number = 200): { x: number, y: number, z: number }[] {
+    getCenteredPositions(count: number, centerX: number = 650, y: number = 400, z: number = 0, spacing: number = 100): { x: number, y: number, z: number }[] {
         const positions: { x: number, y: number, z: number }[] = [];
         const totalWidth = (count - 1) * spacing;
         const startX = centerX - totalWidth / 2;
@@ -332,6 +385,7 @@ export class GameManager extends Component {
             for (let rank = 1; rank <= 13; rank++) {
                 const cardNode = instantiate(this.cardPrefab);
                 cardNode.parent = this.cardParents[handIdx];
+                cardNode.setScale(0.7, 0.7, 0.7);
                 const cardController = cardNode.getComponent(CardController);
                 if (cardController) {
                     const isFaceUp = handIdx === 0;
