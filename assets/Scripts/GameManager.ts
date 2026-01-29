@@ -1,6 +1,6 @@
 // File: assets/Scripts/GameManager.ts
 import { _decorator, Component, Node, Prefab, instantiate, input, Input, KeyCode, EventKeyboard, Vec3, UITransform } from 'cc';
-import { CardController } from './CardController';
+import { CardController, getCardRankValue } from './CardController';
 import { HandCardsController } from './HandCardsController';
 const { ccclass, property } = _decorator;
 import { BotStrategy } from './BotStrategy';
@@ -44,7 +44,6 @@ export class GameManager extends Component {
     private waitDuration: number = 20;
     private waitDurationSD: number = 10;
     private resultDuration: number = 5;
-
 
     public gameMode: GameMode = GameMode.Normal;
     private turnCount: number = 1;
@@ -160,13 +159,14 @@ export class GameManager extends Component {
                 }
             }
         }
-    }    private startWaitToSubmit() {
+    }
+
+    private startWaitToSubmit() {
         this.gameState = GameState.WaitToSubmit;
         this.waitTimer = 0;
         this.chosenCard = null;
     }
     private playerDraggingCard: CardController | null = null;
-
 
     onCardDragged(card: CardController) {
         if (this.gameState !== GameState.WaitToSubmit) return;
@@ -206,12 +206,14 @@ export class GameManager extends Component {
 
         // Pair cards with their hand index
         const combined = removedCards.map((card, idx) => ({ card, handIdx: handIndices[idx] }));
-        combined.sort((a, b) => a.card.rank - b.card.rank);
+        // Sort using getCardRankValue so Ace is highest
+        combined.sort((a, b) => getCardRankValue(a.card.rank) - getCardRankValue(b.card.rank));
 
         // Count ranks
         const rankCount: Record<number, number> = {};
         for (const entry of combined) {
-            rankCount[entry.card.rank] = (rankCount[entry.card.rank] || 0) + 1;
+            const rankValue = getCardRankValue(entry.card.rank);
+            rankCount[rankValue] = (rankCount[rankValue] || 0) + 1;
         }
         const duplicatedRanks = Object.keys(rankCount)
             .filter(rank => rankCount[Number(rank)] > 1)
@@ -224,7 +226,7 @@ export class GameManager extends Component {
                 .filter(x => x.h.getHp() > 0);
 
             const handsToLoseHp = combined
-                .filter(entry => duplicatedRanks.includes(entry.card.rank))
+                .filter(entry => duplicatedRanks.includes(getCardRankValue(entry.card.rank)))
                 .map(entry => entry.handIdx);
 
             // If all alive hands would lose HP, skip reduction
@@ -242,9 +244,9 @@ export class GameManager extends Component {
                 }
             }
         } else {
-            // No duplicates: lowest card(s) lose HP
-            const minRank = Math.min(...combined.map(entry => entry.card.rank));
-            const losers = combined.filter(entry => entry.card.rank === minRank);
+            // No duplicates: lowest card(s) lose HP (using getCardRankValue)
+            const minRank = Math.min(...combined.map(entry => getCardRankValue(entry.card.rank)));
+            const losers = combined.filter(entry => getCardRankValue(entry.card.rank) === minRank);
             const uniqueHandIdx = Array.from(new Set(losers.map(entry => entry.handIdx)));
             for (const idx of uniqueHandIdx) {
                 if(this.gameMode== GameMode.Normal)

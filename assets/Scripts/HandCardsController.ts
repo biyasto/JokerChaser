@@ -1,6 +1,8 @@
 // File: assets/Scripts/HandCardsController.ts
 import { _decorator, Component, Node, Vec3 } from 'cc';
 import { CardController } from './CardController';
+import { getCardRankValue } from './CardController'; // Add this import
+
 const { ccclass, property } = _decorator;
 
 const CARD_SPACING = 50;
@@ -29,8 +31,9 @@ export class HandCardsController extends Component {
 
     private sortAndArrange() {
         this.cards.sort((a, b) => {
-            if (a.rank !== b.rank) {
-                return a.rank - b.rank;
+            const rankDiff = getCardRankValue(a.rank) - getCardRankValue(b.rank);
+            if (rankDiff !== 0) {
+                return rankDiff;
             }
             return a.suit - b.suit;
         });
@@ -43,9 +46,7 @@ export class HandCardsController extends Component {
             const cardNode = this.cards[i].node;
             cardNode.setPosition(new Vec3(startX + i * CARD_SPACING, 0, 0));
             cardNode.setSiblingIndex(i);
-        }
-    }
-
+        }}
     getCards(): CardController[] {
         return this.cards.slice();
     }

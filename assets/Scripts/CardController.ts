@@ -1,8 +1,15 @@
 import { _decorator, Component, Node, EventTouch, Vec3, UITransform } from 'cc';
 import { CardDisplayController } from './CardDisplayController';
 const { ccclass, property } = _decorator;
-import { GameManager, GameState } from './GameManager'; // Add this import
+import { GameManager, GameState } from './GameManager';
 
+export function getCardRankValue(rank: number): number {
+    return rank === 1 ? 14 : rank;
+}
+
+export function isCardAHigher(cardA: CardController, cardB: CardController): boolean {
+    return getCardRankValue(cardA.rank) > getCardRankValue(cardB.rank);
+}
 
 @ccclass('CardController')
 export class CardController extends Component {
@@ -53,7 +60,6 @@ export class CardController extends Component {
 
     onDragMove(event: EventTouch) {
         if (!this.isDragging) return;
-        // Stop dragging if card is no longer in hand (picked by timer)
         if (!this.inHand || !GameManager.instance || GameManager.instance.gameState !== GameState.WaitToSubmit) {
             this.isDragging = false;
             this.returnToHand();
@@ -66,31 +72,24 @@ export class CardController extends Component {
         this.node.setPosition(localPos);
     }
 
-    typescript
     onDragEnd(event: EventTouch) {
         if (!this.isDragging) return;
         this.isDragging = false;
 
-        // Stop if card is no longer in hand (picked by timer)
         if (!this.inHand) return;
 
-        // Get card world position
         const cardWorldPos = this.node.getWorldPosition();
-
-        // Get submit area and its world rect
         const submitArea = GameManager.instance.summitArea;
         const submitTransform = submitArea.getComponent(UITransform);
         const submitWorldPos = submitArea.getWorldPosition();
         const submitSize = submitTransform.contentSize;
         const submitAnchor = submitTransform.anchorPoint;
 
-        // Calculate submit area rect in world space
         const left = submitWorldPos.x - submitSize.width * submitAnchor.x;
         const right = left + submitSize.width;
         const bottom = submitWorldPos.y - submitSize.height * submitAnchor.y;
         const top = bottom + submitSize.height;
 
-        // Check if card is inside submit area
         if (
             cardWorldPos.x >= left &&
             cardWorldPos.x <= right &&
@@ -99,7 +98,6 @@ export class CardController extends Component {
         ) {
             if (this.dragCallback) this.dragCallback(this);
         } else {
-            // Return to hand if not in submit area
             if (this.returnToHand) this.returnToHand();
         }
         GameManager.instance.playerDraggingCard = null;
@@ -108,10 +106,10 @@ export class CardController extends Component {
     public forceStopDragging() {
         this.isDragging = false;
     }
+
     // This will be replaced by GameManager at runtime
     returnToHand() {
         this.inHand = true;
-        // Reset sibling index so hand controller can arrange it
         this.node.setSiblingIndex(0);
     }
 }
