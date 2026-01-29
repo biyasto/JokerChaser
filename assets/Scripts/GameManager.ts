@@ -7,7 +7,8 @@ import { BotStrategy } from './BotStrategy';
 import { SceneManager } from './SceneManager';
 import { SettingUIController } from './SettingUIController';
 import { RuleUIController } from './RuleUIController';
-import {SoundManager} from "db://assets/Scripts/SoundManager";
+import {SoundManager} from "./SoundManager";
+import { ChaserUIController } from './ChaserUIController';
 
 export enum GameState {
     SetUp,
@@ -48,6 +49,8 @@ export class GameManager extends Component {
     @property(Node)
     dealStartNode: Node = null!; // Assign a node in scene (e.g. deck)
 
+    @property(ChaserUIController)
+    chaserUI: ChaserUIController = null!;
     @property
     public debugTimerLog: boolean = true;
 
@@ -291,6 +294,7 @@ export class GameManager extends Component {
                     }
                 } else {
                     this.startWaitToSubmit();
+                    this.chaserUI.reset();
                 }
             }
         }
@@ -404,6 +408,8 @@ export class GameManager extends Component {
             c.node.setWorldPosition(pos.x, pos.y, pos.z);
             c.node.setSiblingIndex(999);
         }
+        this.chaserUI.reset();
+        this.chaserUI.checkValue(handIndices);
         this.removedCardsOnTable = combined.map(x => x.card);
         this.chosenCard = null;
         this.waitTimer = 0;
