@@ -14,7 +14,6 @@ export class ChaserUIController extends Component {
     moveDuration: number = 0.5;
 
     start() {
-        this.reset();
     }
 
     reset() {
@@ -106,8 +105,11 @@ export class ChaserUIController extends Component {
     checkValue(values: number[]) {
         if (!values || values.length === 0) return;
 
+
         // replace any value == 1 with 14
         const normalized = values.map(v => v === 1 ? 14 : v);
+        console.log('[ChaserUIController] normalized values:', normalized);
+
 
         const uniqueIndices = this.getUniqueSortedIndices(normalized);
         const baseTargets = [400, 300, 200, 100];

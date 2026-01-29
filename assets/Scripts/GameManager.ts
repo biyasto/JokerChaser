@@ -336,7 +336,6 @@ export class GameManager extends Component {
         // Track removed cards and their hand indices
         const removedCards: CardController[] = [playerCard];
         const handIndices: number[] = [0]; // 0 = player, 1\-3 = bots
-
         for (let i = 1; i < 4; i++) {
             const botHand = this.handCardsControllers[i];
             const cardToRemove = BotStrategy.pickCard(i, botHand, this.handCardsControllers);
@@ -348,6 +347,9 @@ export class GameManager extends Component {
                 handIndices.push(i);
             }
         }
+        const rankValues = removedCards.map(card => getCardRankValue(card.rank));
+        this.chaserUI.reset();
+        this.chaserUI.checkValue(rankValues);
         SoundManager.instance?.playSFX('Audio/Card-Shuffle');
 
         // Pair cards with their hand index
@@ -375,28 +377,49 @@ export class GameManager extends Component {
                 .filter(entry => duplicatedRanks.includes(getCardRankValue(entry.card.rank)))
                 .map(entry => entry.handIdx);
 
+            console.log('[DEBUG] Duplicated ranks found:', duplicatedRanks);
+            console.log('[DEBUG] Hands that played duplicated ranks:', handsToLoseHp);
+            console.log('[DEBUG] Alive hands before damage:', aliveHands.map(x => x.idx));
+
             // If all alive hands would lose HP, skip reduction (except SuddenDeath)
             const allWouldDie = aliveHands.every(x => handsToLoseHp.includes(x.idx));
+            console.log('[DEBUG] All alive hands would die:', allWouldDie);
+            console.log('[DEBUG] Game mode:', this.gameMode);
+
             if (!allWouldDie || this.gameMode === GameMode.SuddenDeath) {
+                console.log('[DEBUG] Applying HP damage to hands:', handsToLoseHp);
                 for (const idx of handsToLoseHp) {
+                    const hpBefore = this.handCardsControllers[idx].getHp();
                     if (this.gameMode == GameMode.Normal) {
                         this.handCardsControllers[idx].reduceHp(1);
                     } else {
                         this.handCardsControllers[idx].reduceHp(this.handCardsControllers[idx].getHp());
                     }
+                    const hpAfter = this.handCardsControllers[idx].getHp();
+                    console.log(`[DEBUG] Hand ${idx}: ${hpBefore} HP -> ${hpAfter} HP`);
                 }
+            } else {
+                console.log('[DEBUG] Skipping HP damage - all alive hands would die');
             }
         } else {
-            // No duplicates: lowest card(s) lose HP (using getCardRankValue)
-            const minRank = Math.min(...combined.map(entry => getCardRankValue(entry.card.rank)));
+            // No duplicates: lowest card(s) lose HP
+            const minRank = Math.max(...combined.map(entry => getCardRankValue(entry.card.rank)));
             const losers = combined.filter(entry => getCardRankValue(entry.card.rank) === minRank);
             const uniqueHandIdx = Array.from(new Set(losers.map(entry => entry.handIdx)));
+
+            console.log('[DEBUG] No duplicates - lowest rank loses');
+            console.log('[DEBUG] Lowest rank value:', minRank);
+            console.log('[DEBUG] Hands with lowest rank:', uniqueHandIdx);
+
             for (const idx of uniqueHandIdx) {
+                const hpBefore = this.handCardsControllers[idx].getHp();
                 if (this.gameMode == GameMode.Normal) {
                     this.handCardsControllers[idx].reduceHp(1);
                 } else {
                     this.handCardsControllers[idx].reduceHp(this.handCardsControllers[idx].getHp());
                 }
+                const hpAfter = this.handCardsControllers[idx].getHp();
+                console.log(`[DEBUG] Hand ${idx}: ${hpBefore} HP -> ${hpAfter} HP`);
             }
         }
 
@@ -408,8 +431,6 @@ export class GameManager extends Component {
             c.node.setWorldPosition(pos.x, pos.y, pos.z);
             c.node.setSiblingIndex(999);
         }
-        this.chaserUI.reset();
-        this.chaserUI.checkValue(handIndices);
         this.removedCardsOnTable = combined.map(x => x.card);
         this.chosenCard = null;
         this.waitTimer = 0;
