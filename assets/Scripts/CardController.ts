@@ -2,7 +2,7 @@
 import { _decorator, Component, Node, EventTouch, Vec3, UITransform } from 'cc';
 import { CardDisplayController } from './CardDisplayController';
 const { ccclass, property } = _decorator;
-import { GameManager, GameState } from './GameManager';
+import GameManager, { GameState } from './GameManager';
 
 export function getCardRankValue(rank: number): number {
     return rank === 1 ? 14 : rank;

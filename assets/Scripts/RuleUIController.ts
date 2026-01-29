@@ -1,5 +1,5 @@
 import { _decorator, Component, Node, tween, Vec3 } from 'cc';
-import {GameManager} from "./GameManager";
+import GameManager from "./GameManager";
 import {SoundManager} from "db://assets/Scripts/SoundManager";
 const { ccclass, property } = _decorator;
 

@@ -1,7 +1,7 @@
 import { _decorator, Component, Node, Button } from 'cc';
 import { SoundManager } from './SoundManager';
 const { ccclass, property } = _decorator;
-import { GameManager } from './GameManager';
+import GameManager from './GameManager';
 
 
 @ccclass('SettingUIController')

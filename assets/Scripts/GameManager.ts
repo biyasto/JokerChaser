@@ -24,7 +24,7 @@ export enum GameMode {
 }
 
 @ccclass('GameManager')
-export class GameManager extends Component {
+class GameManager extends Component {
     public static instance: GameManager;
 
     @property(SettingUIController)
@@ -259,6 +259,8 @@ export class GameManager extends Component {
                     this.gameState = GameState.Over;
                     if (aliveHands.length >= 1) {
                         console.log('You Lose!');
+                        SoundManager.instance?.playSFX('Audio/Lose');        // Set the card to the first spot
+
                         this.OverUI.active = true;
                         this.OverText.string = '<b><color=#FFFFFF>You Lose!</color></b>'
                         return;
@@ -266,20 +268,24 @@ export class GameManager extends Component {
                         console.log('You Draw!');
                         this.OverUI.active = true;
                         this.OverText.string = '<b><color=#FFFFFF>You Draw!</color></b>'
+                        SoundManager.instance?.playSFX('Audio/Lose');        // Set the card to the first spot
                         return;
                     }
                 } else if (aliveHands.length == 1) {
                     this.gameState = GameState.Over;
                     console.log('You Win!');
+                    SoundManager.instance?.playSFX('Audio/Win');        // Set the card to the first spot
+
                     this.OverUI.active = true;
                     this.OverText.string = '<b><color=#FFFFFF>You Win!</color></b>'
                     return;
                 }
 
                 this.setTurnCount(this.turnCount + 1);
-                if (this.turnCount >= 1 && this.gameMode === GameMode.Normal) {
+                if (this.turnCount >= 20 && this.gameMode === GameMode.Normal) {
                     this.gameMode = GameMode.SuddenDeath;
                     console.log('Game mode changed to Sudden Death!');
+                    SoundManager.instance?.playSFX('Audio/Warning');
 
                     const aliveHands = this.handCardsControllers.filter(h => h.getHp() > 0);
                     for (const hand of aliveHands) {
@@ -403,9 +409,13 @@ export class GameManager extends Component {
                 for (const idx of handsToLoseHp) {
                     const hpBefore = this.handCardsControllers[idx].getHp();
                     if (this.gameMode == GameMode.Normal) {
-                        this.handCardsControllers[idx].reduceHp(1);
+                        setTimeout(() => {
+                            this.handCardsControllers[idx].reduceHp(1);
+                        }, 2000);
                     } else {
-                        this.handCardsControllers[idx].reduceHp(this.handCardsControllers[idx].getHp());
+                        setTimeout(() => {
+                            this.handCardsControllers[idx].reduceHp(this.handCardsControllers[idx].getHp());
+                        }, 2000);
                     }
                     const hpAfter = this.handCardsControllers[idx].getHp();
                     console.log(`[DEBUG] Hand ${idx}: ${hpBefore} HP -> ${hpAfter} HP`);
@@ -426,9 +436,13 @@ export class GameManager extends Component {
             for (const idx of uniqueHandIdx) {
                 const hpBefore = this.handCardsControllers[idx].getHp();
                 if (this.gameMode == GameMode.Normal) {
-                    this.handCardsControllers[idx].reduceHp(1);
-                } else {
-                    this.handCardsControllers[idx].reduceHp(this.handCardsControllers[idx].getHp());
+                    setTimeout(() => {
+                        this.handCardsControllers[idx].reduceHp(1);
+                    }, 2000);                } else
+                    {
+                        setTimeout(() => {
+                            this.handCardsControllers[idx].reduceHp(this.handCardsControllers[idx].getHp());
+                        }, 2000);
                 }
                 const hpAfter = this.handCardsControllers[idx].getHp();
                 console.log(`[DEBUG] Hand ${idx}: ${hpBefore} HP -> ${hpAfter} HP`);
@@ -564,3 +578,5 @@ export class GameManager extends Component {
         this.gameState = this.prevState;
     }
 }
+
+export default GameManager
