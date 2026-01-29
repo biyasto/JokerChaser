@@ -4,12 +4,18 @@ import { CardController, getCardRankValue } from './CardController';
 import { HandCardsController } from './HandCardsController';
 const { ccclass, property } = _decorator;
 import { BotStrategy } from './BotStrategy';
+import { SceneManager } from './SceneManager';
+import { SettingUIController } from './SettingUIController';
+import { RuleUIController } from './RuleUIController';
+
+
 
 export enum GameState {
     SetUp,
     WaitToSubmit,
     Result,
     Pause,
+    Resume,
     Over
 }
 export enum GameMode {
@@ -20,6 +26,12 @@ export enum GameMode {
 @ccclass('GameManager')
 export class GameManager extends Component {
     public static instance: GameManager;
+
+    @property(SettingUIController)
+    settingUI: SettingUIController = null!;
+
+    @property(RuleUIController)
+    ruleUI: RuleUIController = null!;
 
     @property({ type: Prefab })
     cardPrefab: Prefab = null!;
@@ -48,6 +60,7 @@ export class GameManager extends Component {
     public gameMode: GameMode = GameMode.Normal;
     private turnCount: number = 1;
     public gameState: GameState = GameState.SetUp;
+    private prevState: GameState = GameState.SetUp;
 
     onLoad() {
         GameManager.instance = this;
@@ -355,5 +368,32 @@ export class GameManager extends Component {
             }
             this.removedCardsOnTable = [];
         }
+    }
+    openSettingUI() {
+        if (this.settingUI) {
+            this.pauseGame();
+            this.settingUI.showUI();
+        }
+    }
+
+    openRuleUI() {
+        if (this.ruleUI) {
+            this.pauseGame();
+            this.ruleUI.showUI();
+        }
+    }
+
+    returnToMenuScene() {
+        SceneManager.instance.goToMenuScene();
+    }
+    pauseGame() {
+        console.log("Game Paused");
+        this.prevState = this.gameState;
+        this.gameState = GameState.Pause;
+    }
+
+    resumeGame() {
+        console.log("Game Resumed");
+        this.gameState = this.prevState;
     }
 }

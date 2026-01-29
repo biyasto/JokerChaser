@@ -1,6 +1,7 @@
 import { _decorator, Component } from 'cc';
 import { SettingUIController } from './SettingUIController';
 import { RuleUIController } from './RuleUIController';
+import {SceneManager} from "db://assets/Scripts/SceneManager";
 const { ccclass, property } = _decorator;
 
 @ccclass('MenuController')
@@ -25,5 +26,9 @@ export class MenuController extends Component {
         if (this.ruleUI) {
             this.ruleUI.showUI();
         }
+    }
+    onPlayButtonClicked() {
+        console.log('Play button clicked');
+        SceneManager.instance.goToGameplayScene();
     }
 }
